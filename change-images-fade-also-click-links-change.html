@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stable-Height Fading Image Groups</title>
+  <style>
+    /* Link & Underline Styles */
+    .animated-link {
+      text-decoration: none;
+      position: relative;
+      margin-right: 20px;
+      font-size: 20px;
+      color: #000;
+      cursor: pointer;
+    }
+    .animated-link::after {
+      content: "";
+      position: absolute;
+      left: 0; bottom: -2px;
+      height: 2px;
+      background: #000;
+      width: 0;
+    }
+    .animated-link.active::after {
+      animation: underline-animation 20s linear infinite;
+    }
+    @keyframes underline-animation {
+      0%   { width: 0; }
+      5%   { width: 100%; }
+      55%  { width: 100%; }
+      60%  { width: 0; }
+      100% { width: 0; }
+    }
+
+    /* Container is free-height, but will get a JS-set min-height */
+    .image-container {
+      width: 400px;       /* constrain width */
+      margin-top: 20px;
+      position: relative;
+      overflow: hidden;
+      /* min-height will be set via JS */
+    }
+
+    .image-group {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      display: none;
+    }
+    .image-group.active {
+      display: block;
+      opacity: 1;
+    }
+    .image-group img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Links -->
+  <a class="animated-link active" data-index="0">Link 1</a>
+  <a class="animated-link"       data-index="1">Link 2</a>
+  <a class="animated-link"       data-index="2">Link 3</a>
+
+  <!-- Image Container -->
+  <div class="image-container">
+    <div class="image-group active" style="display:block; opacity:1;">
+      <img src="https://via.placeholder.com/400x300?text=Group1" alt="Group 1">
+    </div>
+    <div class="image-group">
+      <img src="https://via.placeholder.com/400x200?text=Group2" alt="Group 2">
+    </div>
+    <div class="image-group">
+      <img src="https://via.placeholder.com/400x250?text=Group3" alt="Group 3">
+    </div>
+  </div>
+
+  <script>
+    const links       = document.querySelectorAll('.animated-link');
+    const groups      = document.querySelectorAll('.image-group');
+    const container   = document.querySelector('.image-container');
+    const fadeDur     = 1000;    // must match CSS transition
+    const cyclePeriod = 20000;
+    let currentIndex  = 0;
+    let timerID;
+
+    // 1) Measure all groups to find the max height, then lock the container.
+    window.addEventListener('load', () => {
+      let maxH = 0;
+      groups.forEach(g => {
+        // Temporarily show it so we can measure
+        g.style.display = 'block';
+        g.style.opacity = '1';
+        maxH = Math.max(maxH, g.offsetHeight);
+      });
+      // Lock container to the tallest height
+      container.style.minHeight = maxH + 'px';
+
+      // Re-hide all but the active one
+      groups.forEach((g,i) => {
+        if (i !== currentIndex) {
+          g.style.opacity = '0';
+          g.style.display = 'none';
+        }
+      });
+
+      startAutoCycle();
+    });
+
+    // 2) Core fade + display logic (same as before)
+    function showGroup(idx) {
+      const oldG = groups[currentIndex];
+      links[currentIndex].classList.remove('active');
+      oldG.classList.remove('active');
+      oldG.style.opacity = 0;
+      setTimeout(() => { oldG.style.display = 'none'; }, fadeDur);
+
+      const newG = groups[idx];
+      newG.style.display = 'block';
+      void newG.offsetWidth;      // force reflow
+      newG.classList.add('active');
+      newG.style.opacity = 1;
+      links[idx].classList.add('active');
+      currentIndex = idx;
+    }
+
+    // 3) Auto-advance
+    function startAutoCycle() {
+      timerID = setInterval(() => {
+        showGroup((currentIndex + 1) % groups.length);
+      }, cyclePeriod);
+    }
+    function resetCycle() {
+      clearInterval(timerID);
+      startAutoCycle();
+    }
+
+    // 4) Click to switch & reset timer
+    links.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const idx = +link.dataset.index;
+        if (idx !== currentIndex) {
+          showGroup(idx);
+          resetCycle();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
